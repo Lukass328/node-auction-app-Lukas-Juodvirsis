@@ -8,20 +8,42 @@ const app = express();
 const morgan = require('morgan');
 const socketIo = require('socket.io');
 const http = require('http').createServer(app);
-
-const router = require('./router/mainRouter');
+const cors = require('cors');
+const session = require('express-session');
+const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const mainRouter = require('./router/mainRouter');
 const socketRouter = require('./modules/socketRouter');
 
-const port = process.env.PORT || 5000;
+const port = 5000;
 
 
 const io = socketIo(http, {
   cors: {
-    origin: "http://localhost:3000"
-  }
+    origin: 'http://localhost:3000',
+  },
 })
 // Middleware
 app.use(morgan('dev'));
+app.use(express.json());
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+}));
+app.use(cookieParser());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+
+app.use(
+  session({
+    secret: process.env.SECRET_KEY,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  }),
+);
 
 
 app.get('/', (req, res) => {
@@ -31,7 +53,7 @@ app.get('/', (req, res) => {
 });
 
 // ROUTES
-
+app.use('/', mainRouter);
 // 404 - returns json
 app.use((req, res) => {
   res.status(404).json({
@@ -39,18 +61,20 @@ app.use((req, res) => {
   });
 });
 
+// app.set('socketio', io);
+
+// socketRouter(io);
 async function testDbConnection() {
   try {
-    const conn = await mysql.createConnection(dbConfig);
-    const [rows] = await conn.query('SELECT 1');
+    mongoose.connect(process.env.MONGO_KEY);
     // console.log('rows ===', rows);
-    console.log('Connected to MYSQL DB '.bgCyan.bold);
-    conn.end();
+    console.log('Connected to Mongo DB '.bgCyan.bold);
+
   } catch (error) {
     console.log(`Error connecting to db ${error.message}`.bgRed.bold);
     // console.log('error ===', error);
     if (error.code === 'ECONNREFUSED') {
-      console.log('is Xammp running?'.yellow);
+      console.log('is Mongo DB running?'.yellow);
     }
   }
 }
